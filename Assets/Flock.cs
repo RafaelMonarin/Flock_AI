@@ -4,9 +4,10 @@ using UnityEngine;
 
 public class Flock : MonoBehaviour
 {
-    // Variável da classe FlockMaanger, que é atribuida no script "FlockManager", float para a velocidade do peixe.
+    // Variável da classe FlockMaanger, que é atribuida no script "FlockManager", float para a velocidade do peixe, bool para verificar se o peixe está rodando.
     public FlockManager myManager;
     float speed;
+    bool turning = false;
     // Método chamado no primeiro frame da cena.
     private void Start()
     {
@@ -16,8 +17,54 @@ public class Flock : MonoBehaviour
     // Método chamado uma vez a cada frame.
     private void Update()
     {
-        // Chama o método "ApplyRules()", move o peixe com o "transform.Translate" e com a velocidade setada anteriormente.
-        ApplyRules();
+        // Declaração do Bounds passando a ela o centro e o tamanho.
+        Bounds b = new Bounds(myManager.transform.position, myManager.swinLimits * 2);
+        // Declaração do Raycast.
+        RaycastHit hit = new RaycastHit();
+        // Declaração de um vetor direção entre as posições do myManager (classe "FlockManager") e esse script (esse peixe).
+        Vector3 direction = myManager.transform.position - transform.position;
+        // Se o esse peixe não estiver dentro do Bounds:
+        if (!b.Contains(transform.position))
+        {
+            // Seta na variável "turning" para verdadeiro.
+            turning = true;
+            // Seta na variável "direction" um vetor direção entre as posições do myManager (classe "FlockManager") e esse script (esse peixe).
+            direction = myManager.transform.position - transform.position;
+        }
+        else if (Physics.Raycast(transform.position, this.transform.forward * 50, out hit))
+        {
+            // Seta a variável "turning" para verdadeiro.
+            turning = true;
+            // Seta na variável "direction" um vetor direção de reflexão da direção da frente do peixe com a normal da colisão (quando o peixe colidir ele reflete no objeto).
+            direction = Vector3.Reflect(this.transform.forward, hit.normal);
+        }
+        else
+        {
+            // Seta a variável "turning" para falso.
+            turning = false;
+        }
+        // Se "turning" for verdadeiro:
+        if (turning)
+        {
+            // Roda o peixe com Quaternion.Slerp.
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), myManager.rotationSpeed * Time.deltaTime);
+        }
+        else
+        {
+            // Se um valor random entre 0 e 100 for menor que 10 (10% de chance):
+            if (Random.Range(0, 100) < 10)
+            {
+                // Seta na variável "speed" um valor random entre a velocidade mínima e máxima da classe "FlockManager".
+                speed = Random.Range(myManager.minSpeed, myManager.maxSpeed);
+            }
+            // Se um valor random entre 0 e 100 for menor que 20 (20% de chance):
+            if (Random.Range(0, 100) < 20)
+            {
+                // Chama o método "ApplyRules()";
+                ApplyRules();
+            }
+        }
+        // Move o peixe com transform.Transate.
         transform.Translate(0, 0, Time.deltaTime * speed);
     }
     // Método onde está as regras para o cardume.
@@ -63,11 +110,8 @@ public class Flock : MonoBehaviour
         // Se a variável "groupSize" (tamanho do grupo) for maior que 0:
         if (groupSize > 0)
         {
-            // Seta na variável "vcentre" a multiplicação entre a variável "vavoid" e a variável "groupSize" (tamanho do grupo).
-            vcentre = vavoid * groupSize;
-            // Seta na variável "speed" o valor da variável "gSpeed" dividido pela variável "groupSize" (tamanho do grupo).
+            vcentre = vcentre / groupSize + (myManager.goalPos - this.transform.position);
             speed = gSpeed / groupSize;
-            // Variável Vector3 com o valor da direção entre as variáveis "vcentre" e "vavoid" com a posição do peixe aual.
             Vector3 direction = (vcentre + vavoid) - transform.position;
             // Se a variável "direction" for diferente de zero:
             if (direction != Vector3.zero)
